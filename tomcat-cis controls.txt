@@ -1,0 +1,636 @@
+﻿#!/bin/bash
+
+
+host=$(hostname)
+a="$host.txt"
+prefix=$(sudo locate server.xml | grep -i tomcat)
+conf="$(dirname $prefix)"
+home="$(dirname $conf)"
+admin=$(stat -c "%U" $home)
+group=$(stat -c "%G" $home)
+webxml=$(sudo locate web.xml | grep -i tomcat)
+context=$(sudo locate context.xml |grep tomcat)
+
+
+if [[ $prefix ]];
+then echo "Tomcat configuration file -\$prefix- is found. CIS compliance output will now be written to $a file "
+else echo "No prefix \(server.xml\) file found."
+exit
+fi
+
+
+echo $(hostname) >>$a
+echo -n "1.1 Remove extraneous files and directories \(Scored\)" >> $a
+ 
+if ls -l $home/webapps/examples \;
+then  
+  echo ":NOT COMPLIANT" >> $a
+else
+  echo ":COMPLIANT" >> $a
+fi
+
+
+echo -n "1.2 Disable Unused Connectors \(Not Scored\)" >> $a
+
+
+if cat $prefix | grep -i "Connector port="8443"" ; then
+  echo ":COMPLIANT" >> $a
+else
+  echo ":NOT COMPLIANT" >> $a
+fi
+
+
+jarfile="$conf/lib/catalina.jar"
+jarexe="$(sudo locate /jdk/bin/jar | grep -m1 "")"
+serverinfo="org/apache/catalina/util/ServerInfo.properties"
+$jarexe xf $jarfile $serverinfo
+
+
+echo -n "2.1 Alter the Advertised server.info String \(Scored\)" >> $a
+if cat $serverinfo | grep -i "server.info=" | egrep "8.|7." ; then
+  echo ":NOT COMPLIANT" >> $a
+else
+  echo ":COMPLIANT" >> $a
+fi
+
+
+
+
+echo -n "2.2 Alter the Advertised server.number String \(Scored\)" >> $a
+
+
+if cat $serverinfo | grep -i "server.number=" | egrep "8.|7." ; then
+  echo ":NOT COMPLIANT" >> $a
+else
+  echo ":COMPLIANT" >> $a
+fi
+
+
+echo -n "2.3 Alter the Advertised server.built Date \(Scored\)" >> $a
+
+
+if cat $serverinfo | grep -i "server.built\=" | grep "20\*" ; then
+  echo ":NOT COMPLIANT" >> $a
+else
+  echo ":COMPLIANT" >> $a
+fi
+
+
+echo -n "2.4 Disable X-Powered-By HTTP Header and Rename the Server Value for all Connectors \(Scored\)" >> $a
+
+
+if cat $prefix | grep -i "xpoweredBy=\"true\""  ; then
+  echo ":NOT COMPLIANT" >> $a
+else
+  echo ":COMPLIANT" >> $a
+fi
+
+
+echo -n "2.5 Disable client facing Stack Traces \(Scored\)" >> $a
+if cat $webxml | grep -i -A 10 "<error-page>" | grep -i -A 10 "<exception-type>" | grep -i "<java.lang.Throwable>"  ; then
+  echo ":COMPLIANT" >> $a
+else
+  echo ":NOT COMPLIANT" >> $a
+fi
+
+
+echo -n "2.6 Turn off TRACE \(Scored\)" >> $a
+
+
+if cat $prefix | grep -i "allow.Trace="true""  ; then
+  echo ":NOT COMPLIANT" >> $a
+else
+  echo ":COMPLIANT" >> $a
+fi
+
+
+echo -n "2.7 Ensure Sever Header is Modified To Prevent Information Disclosure \(Not Scored\)" >> $a
+
+
+if cat $prefix  |grep "server=*" |egrep -i "tomcat|Apache"  ; then
+  echo ":NOT COMPLIANT" >> $a
+else
+  echo ":COMPLIANT" >> $a
+fi
+
+
+echo -n "3.1 Set a nondeterministic Shutdown command value \(Scored\)" >> $a
+
+
+if cat $prefix  |grep -i shutdown=\"shutdown\"  ; then
+  echo ":NOT COMPLIANT" >> $a
+else
+  echo ":COMPLIANT" >> $a
+fi
+
+
+echo -n "3.2 Disable the Shutdown port \(Not Scored\)" >> $a
+
+
+if cat $prefix  |grep -i shutdown=\"shutdown\" | grep -i port=\"-1\" ; then
+  echo ":COMPLIANT" >> $a
+else
+  echo ":NOT COMPLIANT" >> $a
+fi
+
+
+echo -n "4.1 Restrict access to $CATALINA_HOME \(Scored\)" >> $a
+
+
+if  find $home -follow -maxdepth 0 \( -perm /o+rwx,g=w -o ! -user $admin -o ! -group $group \) -ls; then
+  echo ":NOT COMPLIANT" >> $a
+else
+  echo ":COMPLIANT" >> $a
+fi
+
+
+echo -n "4.2 Restrict access to $CATALINA_BASE \(Scored\)" >> $a
+
+
+if  find $base -follow -maxdepth 0 \( -perm /o+rwx,g=w -o ! -user $admin -o ! -group $group \) -ls; then
+  echo ":NOT COMPLIANT" >> $a
+else
+  echo ":COMPLIANT" >> $a
+fi
+
+
+echo -n "4.3 Restrict access to Tomcat configuration directory \(Scored\)" >> $a
+
+
+if  find $conf -maxdepth 0 \( -perm /o+rwx,g=w -o ! -user tomcat_admin -o ! -group tomcat \) -ls; then
+  echo ":NOT COMPLIANT" >> $a
+else
+  echo ":COMPLIANT" >> $a
+fi
+
+
+echo -n "4.4 Restrict access to Tomcat logs directory \(Scored\)" >> $a
+
+
+if  find $home/logs -follow -maxdepth 0 \( -perm /o+rwx -o ! -user $admin -o ! -group $group \) -ls; then
+  echo ":NOT COMPLIANT" >> $a
+else
+  echo ":COMPLIANT" >> $a
+fi
+
+
+
+
+echo -n "4.5 Restrict access to Tomcat temp directory \(Scored\)" >> $a
+
+
+if  find $home/temp -follow -maxdepth 0 \( -perm /o+rwx -o ! -user $admin -o ! -group $group \) -ls; then
+  echo ":NOT COMPLIANT" >> $a
+else
+  echo ":COMPLIANT" >> $a
+fi
+
+
+echo -n "4.6 Restrict access to Tomcat binaries directory \(Scored\)" >> $a
+
+
+if  find $home/bin -follow -maxdepth 0 \( -perm /o+rwx,g=w -o ! -user $admin -o ! -group $group \) -ls; then
+  echo ":NOT COMPLIANT" >> $a
+else
+  echo ":COMPLIANT" >> $a
+fi
+
+
+echo -n "4.7 Restrict access to Tomcat webapp directory \(Scored\)" >> $a
+
+
+if  find $home/webapps -follow -maxdepth 0 \( -perm /o+rwx,g=w -o ! -user $admin -o ! -group $group \) -ls; then
+  echo ":NOT COMPLIANT" >> $a
+else
+  echo ":COMPLIANT" >> $a
+fi
+
+
+echo -n "4.8 Restrict access to Tomcat Catalina properties file \(Scored\)" >> $a
+
+
+if  find $conf/catalina.properties -follow -maxdepth 0 \( -perm /o+rwx,g+rwx,u+x -o ! -user $admin -o ! -group $group \) -ls; then
+  echo ":NOT COMPLIANT" >> $a
+else
+  echo ":COMPLIANT" >> $a
+fi
+
+
+echo -n "4.9 Restrict access to Tomcat Catalina policy file \(Scored\)" >> $a
+
+
+if  find $conf/catalina.policy -follow -maxdepth 0 \( -perm /o+rwx,g+rwx,u+x -o ! -user $admin -o ! -group $group \) -ls; then
+  echo ":NOT COMPLIANT" >> $a
+else
+  echo ":COMPLIANT" >> $a
+fi
+
+
+
+
+echo -n "4.10 Restrict access to Tomcat context.xml \(Scored\)" >> $a
+
+
+if  find $context -follow -maxdepth 0 \( -perm /o+rwx,g+rwx,u+x -o ! -user $admin -o ! -group $group \) -ls; then
+  echo ":NOT COMPLIANT" >> $a
+else
+  echo ":COMPLIANT" >> $a
+fi
+
+
+echo -n "4.11 Restrict access to Tomcat logging.properties \(Scored\)" >> $a
+
+
+if  find $conf/logging.properties -follow -maxdepth 0 \( -perm /o+rwx,g+rwx,u+x -o ! -user $admin -o ! -group $group \) -ls; then
+  echo ":NOT COMPLIANT" >> $a
+else
+  echo ":COMPLIANT" >> $a
+fi
+
+
+echo -n "4.12 Restrict access to Tomcat server.xml \(Scored\)">> $a
+
+
+if  find $prefix -follow -maxdepth 0 \( -perm /o+rwx,g+rwx,u+x -o ! -user $admin -o ! -group $group \) -ls; then
+  echo ":NOT COMPLIANT" >> $a
+else
+  echo ":COMPLIANT" >> $a
+fi
+
+
+echo -n "4.13 Restrict access to Tomcat tomcat-users.xml \(Scored\)">> $a
+
+
+if  find $conf/tomcat-users.xml -follow -maxdepth 0 \( -perm /o+rwx,g+rwx,u+x -o ! -user $admin -o ! -group $group \) -ls; then
+  echo ":NOT COMPLIANT" >> $a
+else
+  echo ":COMPLIANT" >> $a
+fi
+
+
+echo -n "4.14 Restrict access to Tomcat web.xml \(Scored\)">> $a
+
+
+if  find $webxml -follow -maxdepth 0 \( -perm /o+rwx,g+rwx,u+x -o ! -user $admin -o ! -group $group \) -ls; then
+  echo ":NOT COMPLIANT" >> $a
+else
+  echo ":COMPLIANT" >> $a
+fi
+
+
+
+
+echo -n "5.1 Use secure Realms \(Scored\)">> $a
+
+
+if  cat $prefix | grep -i "classname" | egrep "MemoryRealm|JDBCRealm|UserDatabaseRealm"; then
+  echo ":NOT COMPLIANT" >> $a
+else
+  echo ":COMPLIANT" >> $a
+fi
+
+
+echo -n "5.2 Use LockOut Realms \(Scored\)">> $a
+
+
+if  cat $prefix | grep -i "classname" | grep "LockoutRealm" | grep -i "failureCount=\"3\"" |grep -i "lockOutTime=\"600\""; then
+  echo ":COMPLIANT" >> $a
+else
+  echo ":NOT COMPLIANT" >> $a
+fi
+
+
+echo -n "6.1 Setup Client-cert Authentication \(Scored\)">> $a
+
+
+if  cat $prefix | grep -i -A 9 "<connector" | grep -i -A 9 "clientauth=\"true\"" | grep -i certificateverification=\"required\"; then
+  echo ":COMPLIANT" >> $a
+else
+  echo ":NOT COMPLIANT" >> $a
+fi
+
+
+echo -n "6.2 Ensure SSLEnabled is set to True for Sensitive Connectors \(Not Scored\)">> $a
+
+
+if  cat $prefix | grep -i -A 9 "<connector" | grep -i -A 9 "sslenabled=\"true\""; then
+  echo ":COMPLIANT" >> $a
+else
+  echo ":NOT COMPLIANT" >> $a
+fi
+
+
+echo -n "6.3 Ensure scheme is set accurately \(Scored\)">> $a
+
+
+if  cat $prefix | grep -i -A 9 "<connector" | grep -i -A 9 "sslenabled=\"true\" | grep -i scheme=\"https\""; then
+  echo ":COMPLIANT" >> $a
+else
+  echo ":NOT COMPLIANT" >> $a
+fi
+
+
+echo -n "6.4 Ensure secure is set to true only for SSL-enabled Connectors \(Scored\)">> $a
+
+
+if  cat $prefix | grep -i -A 9 "<connector" | grep -i -A 9 "sslenabled=\"true\" | grep -i secure=\"true\""; then
+  echo ":COMPLIANT" >> $a
+else
+  echo ":NOT COMPLIANT" >> $a
+fi
+
+
+echo -n "6.5 Ensure SSL Protocol is set to TLS for Secure Connectors \(Scored\)">> $a
+
+
+if  cat $prefix | grep -i -A 9 "<connector" | grep -i -A 9 "sslenabled=\"true\" | grep -i sslprotocol=\"tls\""; then
+  echo ":COMPLIANT" >> $a
+else
+  echo ":NOT COMPLIANT" >> $a
+fi
+
+
+echo -n "6.6 Control the maximum size of a POST request that will be parsed for parameter \(Scored\)">> $a
+
+
+# if sudo cat $prefix |tr -d '\n' | perl -l -ne 'for (m{<Connector.*?</Connector>}gs) {print if /\maxpostsize=2097152/}';
+# then echo ":COMPLIANT" >> $a
+
+
+if cat $prefix | grep -q "maxpostsize";then
+echo ":COMPLIANT" >> $a
+else echo ":NOT COMPLIANT" >>$a
+fi
+
+
+echo -n "7.1 Application specific logging \(Scored\)">> $a
+
+
+if  ls -lra $home/webapps/APP/WEB-INF/classes | grep -i logging.properties; then     
+  echo ":COMPLIANT" >> $a
+else
+  echo ":NOT COMPLIANT" >> $a
+fi
+
+
+echo -n "7.2 Specify file handler in logging.properties files \(Scored\)">> $a
+
+
+if cat $home/webapps/APP/WEB-INF/classes/logging.properties | grep handlers; then
+echo ":COMPLIANT" >> $a
+elif cat $conf/logging.properties | grep handlers;
+then echo ":COMPLIANT" >> $a
+else echo ":NOT COMPLIANT">> $a
+
+
+fi
+
+
+echo -n "7.3 Ensure className is set correctly in context.xml \(Scored\)">> $a
+
+
+if  cat $context | grep org.apache.catalina.valves.AccessLogValve; then
+  echo ":COMPLIANT" >> $a
+else  echo ":NOT COMPLIANT" >> $a
+
+
+fi
+
+
+echo -n "7.4 Ensure directory in context.xml is a secure location \(Scored\)">> $a
+loglocation=$(cat $conf/context.xml | grep directory | cut -d '"' -f 2)
+if  find $home/logs -maxdepth 0 \( -perm /o+rwx -o ! -user $admin -o ! -group $group \) -ls ; then
+  echo ":NOT COMPLIANT" >> $a
+else  echo ":COMPLIANT" >> $a
+
+
+fi
+
+
+echo -n "7.5 Ensure pattern in context.xml is correct \(Scored\)">> $a
+
+
+if  cat $home/webapps/APP/META-INF/context.xml | grep pattern; then
+  echo ":COMPLIANT" >> $a
+else  echo ":NOT COMPLIANT" >> $a
+fi
+
+
+echo -n "7.6 Ensure directory in logging.properties is a secure location \(Scored\)">> $a
+
+
+if  find $home/logs -maxdepth 0 \( -perm /o+rwx -o ! -user $admin -o ! -group $group \) -ls ; then
+  echo ":NOT COMPLIANT" >> $a
+else  echo ":COMPLIANT" >> $a
+fi
+
+
+
+
+echo -n "8.1 Restrict runtime access to sensitive packages \(Scored\)">> $a
+
+
+if  cat $conf/catalina.properties | grep -i "package.access=sun.,org.apache.catalina.,org.apache.coyote.,org.apache.jasper.,org.apache.tomcat." ; then
+  echo ":COMPLIANT" >> $a
+  else echo ":NOT COMPLIANT" >> $a
+fi
+
+
+echo -n "9.1 Starting Tomcat with Security Manager \(Scored\)">> $a
+
+
+if  cat /etc/init.d/gcstartup |grep -i catalina | grep -i "-security" ; then
+  echo ":COMPLIANT" >> $a
+  else echo ":NOT COMPLIANT" >> $a
+fi
+
+
+echo -n "9.2 Disabling auto deployment of applications \(Scored\)">> $a
+
+
+if  cat $prefix |grep -i "autodeploy=\"false\"" ; then
+  echo ":COMPLIANT" >> $a
+  else echo ":NOT COMPLIANT" >> $a
+fi
+
+
+echo -n "9.3 Disable deploy on startup of applications \(Scored\)">> $a
+
+
+if  cat $prefix |grep -i "deployonstartup=\"false\"" ; then
+  echo ":COMPLIANT" >> $a
+  else echo ":NOT COMPLIANT" >> $a
+fi
+
+
+echo -n "10.1 Ensure Web content directory is on a separate partition from the Tomcat system files \(Not Scored\)">> $a
+
+
+if  ls -l $home/webapps ; then
+  echo ":COMPLIANT" >> $a
+  else echo ":NOT COMPLIANT" >> $a
+fi
+
+
+echo -n "10.2 Restrict access to the web administration application \(Not Scored\)">> $a
+
+
+if sudo cat $prefix | grep -i "<valve" | grep -v "<!--" | grep -i remoteaddrvalve ; then
+  echo ":COMPLIANT" >> $a
+  else echo ":NOT COMPLIANT" >> $a
+fi
+
+
+echo -n "10.3 Restrict manager application \(Not Scored\)">> $a
+manager="$(locate manager.xml | grep tomcat)"
+
+
+if [[ !$manager ]]; then 
+echo ":NOT APPLICABLE" >> $a
+elif sudo cat $manager | grep -i "<valve" | grep -v "<!--" | grep -i allow ; then
+echo ":COMPLIANT" >> $a
+else echo ":NOT COMPLIANT" >> $a
+fi
+
+
+echo -n "10.4 Force SSL when accessing the manager application \(Scored\)">> $a
+
+
+if sudo cat $webxml | grep -i "transport-guarantee" | grep -i confidential ; then
+  echo ":COMPLIANT" >> $a
+  else echo ":NOT COMPLIANT" >> $a
+fi
+
+
+echo -n "10.5 Rename the manager application \(Scored\)">> $a
+
+
+if  [ $manager ] ; then
+  echo ":NOT COMPLIANT" >> $a
+  else echo ":COMPLIANT" >> $a
+fi
+
+
+echo -n "10.6 Enable strict servlet Compliance \(Scored\)">> $a
+startup="$(locate catalina.sh | grep tomcat)"
+if [[ !$startup ]];
+then echo ":NOT APPLICABLE" >> $a
+elif sudo cat $startup | grep -i "\-dorg.apache.catalina.strict_servlet_compliance\=true" ; then
+echo ":COMPLIANT" >> $a
+else echo ":NOT COMPLIANT" >> $a
+fi
+
+
+echo -n "10.7 Turn off session facade recycling \(Scored\)">> $a
+if [[ !$startup ]];
+then echo ":NOT APPLICABLE" >> $a
+elif sudo cat $startup | grep -i "-Dorg.apache.catalina.connector.RECYCLE_FACADES=true" ; then
+echo ":COMPLIANT" >> $a
+else echo ":NOT COMPLIANT" >> $a
+fi
+
+
+echo -n "10.8 Do not allow additional path delimiters \(Scored\)">> $a
+if [[ !$startup ]];
+then echo ":NOT APPLICABLE" >> $a
+elif sudo cat $startup | grep -A 10 -B 10 -i "-Dorg.apache.tomcat.util.buf.UDecoder.ALLOW_ENCODED_SLASH=false" | grep -i "-Dorg.apache.tomcat.util.buf.UDecoder.ALLOW_ENCODED_SLASH=false" ; then
+echo ":COMPLIANT" >> $a
+else echo ":NOT COMPLIANT" >> $a
+fi
+
+
+echo -n "10.9 Do not allow custom header status messages \(Scored\)">> $a
+if [[ !$startup ]];
+then echo ":NOT APPLICABLE" >> $a
+elif sudo cat $startup | grep -i "-Dorg.apache.coyote.USE_CUSTOM_STATUS_MSG_IN_HEADER=false" ; then
+echo ":COMPLIANT" >> $a
+else echo ":NOT COMPLIANT" >> $a
+fi
+
+
+echo -n "10.10 Configure connectionTimeout \(Scored\)">> $a
+to=$(cat $prefix | grep -i connectiontimeout | cut -d """ -f2 | cut -d """ -f1)
+if  [[ $to -gt 60000 ]]  ; then
+echo ":NOT COMPLIANT" >> $a
+else echo ":COMPLIANT" >> $a
+fi
+
+
+echo -n "10.11 Configure maxHttpHeaderSize \(Scored\)">> $a
+maxhttphs=$(cat $prefix | grep -i maxhttpheadersize | cut -d """ -f2 | cut -d """ -f1)
+if  [[ $maxhttphs -eq 8192 ]]  ; then
+  echo ":COMPLIANT" >> $a
+  else echo ":NOT COMPLIANT" >> $a
+fi
+
+
+echo -n "10.12 Force SSL for all applications \(Scored\)">> $a
+
+
+if  cat $webxml | grep -i "transport-guarantee" | grep -i confidential ; then
+  echo ":COMPLIANT" >> $a
+  else echo ":NOT COMPLIANT" >> $a
+fi
+
+
+echo -n "10.13 Do not allow symbolic linking \(Scored\)">> $a
+
+
+if  sudo cat $context | grep -i "allowlinking=\"true\""  ; then
+  echo ":NOT COMPLIANT" >> $a
+  else echo ":COMPLIANT" >> $a
+fi
+
+
+echo -n "10.14 Do not run applications as privileged \(Scored\)">> $a
+if  sudo cat $context | grep -i "privileged=\"true\""  ; then
+  echo ":NOT COMPLIANT" >> $a
+  else echo ":COMPLIANT" >> $a
+fi
+
+
+echo -n "10.15 Do not allow cross context requests \(Scored\)">> $a
+if  sudo cat $context | grep -i "crosscontext=\"true\""  ; then
+  echo ":NOT COMPLIANT" >> $a
+  else echo ":COMPLIANT" >> $a
+fi
+
+
+echo -n "10.16 Do not resolve hosts on logging valves \(Scored\)">> $a
+if  sudo cat $prefix | grep -i "enablelookups=\"true\""  ; then
+  echo ":NOT COMPLIANT" >> $a
+  else echo ":COMPLIANT" >> $a
+fi
+
+
+echo -n "10.17 Enable memory leak listener \(Scored\)">> $a
+if  sudo cat $prefix | grep -v "<!--" | grep -i "Listener className=\"org.apache.catalina.core.JreMemoryLeakPreventionListener"  ; then
+  echo ":COMPLIANT" >> $a
+  else echo ":NOT COMPLIANT" >> $a
+fi
+
+
+echo -n "10.18 Setting Security Lifecycle Listener \(Scored\)">> $a
+if  sudo cat $prefix | grep -v "<!--" | grep -i securitylistener| grep -i checkedosusers | grep -i minimumumask  ; then
+  echo ":COMPLIANT" >> $a
+  else echo ":NOT COMPLIANT" >> $a
+fi
+
+
+echo -n "10.19 Use the logEffectiveWebXml and metadata-complete settings for deploying applications in production \(Scored\)">> $a
+cis10191=$(sudo cat $webxml | grep -v "<!--" | grep -i metadata-complete=\"true)
+cis10192=$(sudo cat $context | grep -v "<!--" | grep -i logeffectivewebxml=\"true)
+if  [[ "cis10191 && cis10192" ]]  ; then
+  echo ":COMPLIANT" >> $a
+  else echo ":NOT COMPLIANT" >> $a
+fi
+
+
+echo -n "11.1 Limit HTTP Request Methods \(Scored\)">> $a
+if  cat $webxml | grep -v "<!--" | grep -i -A 3 init-param | grep -i -A 2 readonly | grep -i true ; then
+  echo ":COMPLIANT" >> $a
+  else echo ":NOT COMPLIANT" >> $a
+fi
+
+
+exit
