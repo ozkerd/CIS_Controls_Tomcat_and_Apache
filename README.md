@@ -1,0 +1,2 @@
+# CIS_Controls_Tomcat_and_Apache
+This code helps auditors see whether Tomcat and Apache web servers (running on Linux- tested for RHEL and SUSE family only )were configured in compliance with CIS Hardening standards (CIS Benchmarks for Apache and Tomcat web servers). Latest (as of Apr 2021) CIS Benchmarks were used. Code, when run, outputs a text file. It also prints some output to terminal for some benchmarks where applicable. You can convert txt to csv using ':' (semicolon) as delimeter.
